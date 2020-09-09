@@ -31,9 +31,13 @@
  * - Hint: the length of a C string does _not_ include the null ('\0')
  *   character that terminates it.
  */
-size_t strlen(const char* s) {
-  // TODO: Fill In
-  return 0;
+size_t strlen(const char *s)
+{
+    // TODO: Fill In
+    int n = 0;
+    while (*(s++) != '\x00')
+        n++;
+    return n;
 }
 
 /*
@@ -54,9 +58,18 @@ size_t strlen(const char* s) {
  * 3. >  strspn("hello", "hel") = 4
  *
  */
-size_t strspn(const char* s, const char* accept) {
-  // TODO: Fill In
-  return 0;
+size_t strspn(const char *s, const char *accept)
+{
+    // TODO: Fill In
+    int n;
+    const char *p;
+    for (n = 0; *s; s++, n++) {
+        // find the first match
+        for (p = accept; *p && *p != *s; p++);
+        if (!*p)
+            break;
+    }
+    return n;
 }
 
 /*
@@ -76,9 +89,19 @@ size_t strspn(const char* s, const char* accept) {
  *
  *  - Hint: You can use the other string functions you implemented.
  */
-int strncmp(const char* s1, const char* s2, size_t n) {
-  // TODO: Fill In
-  return 0;
+int strncmp(const char *s1, const char *s2, size_t n)
+{
+    // TODO: Fill In
+    unsigned char u1, u2;
+    while (n-- > 0) {
+        u1 = (unsigned char) *s1++;
+        u2 = (unsigned char) *s2++;
+        if (u1 != u2)
+            return u1 - u2;
+        if (u1 == '\x00')
+            return 0;
+    }
+    return 0; 
 }
 
 /*
@@ -122,9 +145,21 @@ int strncmp(const char* s1, const char* s2, size_t n) {
  * - Hint: make sure not to modify the source string. Please pay attention to
  * the function description to see what is expected of your implementation.
  */
-char* strncpy(char* dest, const char* src, size_t n) {
-  // TODO: Fill In
-  return NULL;
+char *strncpy(char *dest, const char *src, size_t n)
+{
+    // TODO: Fill In
+    if (dest == NULL)
+        return NULL;
+
+    char *tmp = dest;
+    while (*src && n--) {
+        *dest = *src;
+        dest++;
+        src++;
+    }
+
+    *dest = '\x00';
+    return tmp;
 }
 
 /*
@@ -150,7 +185,22 @@ char* strncpy(char* dest, const char* src, size_t n) {
  * - Hint: You can use the other string functions you implemented.
  * - Hint: Think about the expected output when the inputs are empty strings
  */
-char* strstr(const char* haystack, const char* needle) {
-  // TODO: Fill In
-  return NULL;
+char *strstr(const char *haystack, const char *needle)
+{
+    // TODO: Fill In
+    while (*haystack) {
+        const char *start = haystack;
+        const char *sub = needle;
+
+        while (*haystack && *sub && *haystack == *sub) {
+            haystack++;
+            sub++;
+        }
+
+        if (!*sub)
+            return start;
+        haystack = start + 1;
+    }
+
+    return NULL;
 }
