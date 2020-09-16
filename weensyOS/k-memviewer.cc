@@ -95,7 +95,10 @@ void memusage::refresh() {
             mark((uintptr_t) p->pagetable, f_kernel | f_process(pid));
 
             for (vmiter it(p); it.low(); ) {
-                if (it.user()) {
+                if (it.user()    
+                    && it.pa() < MEMSIZE_PHYSICAL
+                    && pages[it.pa() / PAGESIZE].used()) {
+                    unsigned owner = (it.pa() - PROC_START_ADDR) / 0x40000;
                     mark(it.pa(), f_user | f_process(pid));
                     it.next();
                 } else {

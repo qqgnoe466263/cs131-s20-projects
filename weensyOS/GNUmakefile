@@ -142,7 +142,7 @@ weensyos.img: $(OBJDIR)/mkbootdisk $(OBJDIR)/bootsector $(OBJDIR)/kernel
 QEMUIMG = -M q35 \
 	-device piix4-ide,bus=pcie.0,id=piix4-ide \
 	-drive file=weensyos.img,if=none,format=raw,id=bootdisk \
-	-device ide-drive,drive=bootdisk,bus=piix4-ide.0
+	-device ide-drive,drive=bootdisk,bus=piix4-ide.0 
 
 run: run-$(QEMUDISPLAY)
 	@:

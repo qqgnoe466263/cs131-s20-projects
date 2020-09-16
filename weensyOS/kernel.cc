@@ -67,11 +67,14 @@ void kernel(const char* command) {
 
     // (re-)Initialize the kernel page table.
     for (vmiter it(kernel_pagetable); it.va() < MEMSIZE_PHYSICAL; it += PAGESIZE) {
-        if (it.va() != 0) {
+        if (it.va() == CONSOLE_ADDR) {
             it.map(it.va(), PTE_P | PTE_W | PTE_U);
+        } else if (it.va() >= 0x100000) {
+            it.map(it.va(), PTE_P | PTE_W | PTE_U);
+        } else if (it.va() == 0) {
+            it.map(it.va(), 0); 
         } else {
-            // nullptr is inaccessible even to the kernel
-            it.map(it.va(), 0);
+            it.map(it.va(), PTE_P | PTE_W);
         }
     }
 
@@ -151,10 +154,38 @@ void kfree(void* kptr) {
 
 void process_setup(pid_t pid, const char* program_name) {
     init_process(&ptable[pid], 0);
+    
+    int vm_begin = 0x100000 + (pid - 1) * 0x40000;
+    int vm_end = 0x100000 + (pid) * 0x40000;
+
+    x86_64_pagetable *pt = (x86_64_pagetable *)kalloc(sizeof(x86_64_pagetable));
+    memset(pt, '\x00', sizeof(x86_64_pagetable));
+
+    /* kernel space mapping */
+    vmiter it2(kernel_pagetable);
+    for (vmiter it(pt); it.va() < 0x100000; it += PAGESIZE) {
+        if (it.va() == CONSOLE_ADDR) {
+            it.map(it2.va(), PTE_P | PTE_W | PTE_U);
+        } else if (it.va() != 0)
+            it.map(it2.va(), PTE_P | PTE_W);
+        it2 += PAGESIZE;
+    }
+
+    /* user space mapping */
+    vmiter it3(kernel_pagetable);
+    it3 += vm_begin; 
+    for (vmiter it(pt); it.va() < vm_end; it += PAGESIZE) {
+        if (it.va() >= vm_begin) {
+            it.map(it3.va(), PTE_P | PTE_W | PTE_U) ;   
+            it3 += PAGESIZE;
+        }
+    }
+
+    ptable[pid].pagetable = pt;
 
     // Initialize this process's page table. Notice how we are currently
     // sharing the kernel's page table.
-    ptable[pid].pagetable = kernel_pagetable;
+    //ptable[pid].pagetable = kernel_pagetable;
 
     // Initialize `program_loader`.
     // The `program_loader` is an iterator that visits segments of executables.

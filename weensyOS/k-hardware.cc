@@ -277,6 +277,10 @@ void init_timer(int rate) {
 
 void check_pagetable(x86_64_pagetable* pagetable) {
     assert(((uintptr_t) pagetable & PAGEOFFMASK) == 0); // must be page aligned
+
+    vmiter it(pagetable, (uintptr_t) exception_entry);
+    log_printf("%p %p", it.va(), it.pa());
+    
     assert(vmiter(pagetable, (uintptr_t) exception_entry).pa()
            == (uintptr_t) exception_entry);
     assert(vmiter(kernel_pagetable, (uintptr_t) pagetable).pa()
