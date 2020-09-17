@@ -87,9 +87,9 @@ void kernel(const char* command) {
         process_setup(1, command);
     } else {
         process_setup(1, "allocator");
-        process_setup(2, "allocator2");
-        process_setup(3, "allocator3");
-        process_setup(4, "allocator4");
+        //process_setup(2, "allocator2");
+        //process_setup(3, "allocator3");
+        //process_setup(4, "allocator4");
     }
 
     // Switch to the first process using run().
@@ -176,13 +176,18 @@ void process_setup(pid_t pid, const char* program_name) {
     it3 += vm_begin; 
     for (vmiter it(pt); it.va() < vm_end; it += PAGESIZE) {
         if ((it.va() >= vm_begin 
-                && it.va() < vm_begin + 0x3000) 
-                || it.va() == vm_end - 0x1000) {
+                && it.va() < vm_begin + 0x3000)) {
+                //|| it.va() == vm_end - 0x1000) {
             it.map(it3.va(), PTE_P | PTE_W | PTE_U) ;   
             it3 += PAGESIZE;
+        } else if (it.va() == vm_end - 0x1000) {
+            while (it3.va() != vm_end - 0x1000)
+                it3 += PAGESIZE;
+            it.map(it3.va(), PTE_P | PTE_W | PTE_U); 
         }
     }
 
+    memshow();
     ptable[pid].pagetable = pt;
 
     // Initialize this process's page table. Notice how we are currently
@@ -211,6 +216,8 @@ void process_setup(pid_t pid, const char* program_name) {
         }
     }
 
+    memshow();
+    
     // We now copy instructions and data into memory that we just allocated.
     for (loader.reset(); loader.present(); ++loader) {
         memset((void*) loader.va(), 0, loader.size());
@@ -229,6 +236,8 @@ void process_setup(pid_t pid, const char* program_name) {
     pages[stack_addr / PAGESIZE].refcount = 1;
     // Set %rsp to the start of the stack.
     ptable[pid].regs.reg_rsp = stack_addr + PAGESIZE;
+
+    memshow();
 
     // Finally, mark the process as runnable.
     ptable[pid].state = P_RUNNABLE;
@@ -383,7 +392,7 @@ uintptr_t syscall(regstate* regs) {
 int syscall_page_alloc(uintptr_t addr) {
     x86_64_pagetable *pt = current->pagetable;
     vmiter it(kernel_pagetable);
-    it += addr;
+    it += addr + 0x40000;
     (vmiter(pt) += addr).map(it.va(), PTE_P | PTE_W | PTE_U);
 
     assert(!pages[addr / PAGESIZE].used());
