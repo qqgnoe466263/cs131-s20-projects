@@ -175,7 +175,9 @@ void process_setup(pid_t pid, const char* program_name) {
     vmiter it3(kernel_pagetable);
     it3 += vm_begin; 
     for (vmiter it(pt); it.va() < vm_end; it += PAGESIZE) {
-        if (it.va() >= vm_begin) {
+        if ((it.va() >= vm_begin 
+                && it.va() < vm_begin + 0x3000) 
+                || it.va() == vm_end - 0x1000) {
             it.map(it3.va(), PTE_P | PTE_W | PTE_U) ;   
             it3 += PAGESIZE;
         }
@@ -379,6 +381,11 @@ uintptr_t syscall(regstate* regs) {
 //    have to change this).
 
 int syscall_page_alloc(uintptr_t addr) {
+    x86_64_pagetable *pt = current->pagetable;
+    vmiter it(kernel_pagetable);
+    it += addr;
+    (vmiter(pt) += addr).map(it.va(), PTE_P | PTE_W | PTE_U);
+
     assert(!pages[addr / PAGESIZE].used());
     // Currently we're simply using the physical page that has the same address
     // as `addr` (which is a virtual address).
