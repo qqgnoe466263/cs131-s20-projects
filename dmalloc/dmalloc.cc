@@ -1,7 +1,11 @@
 #define DMALLOC_DISABLE 1
 #include "dmalloc.hh"
+#include <unordered_map>
 #include <cassert>
 #include <cstring>
+
+dmalloc_stats my_stats;
+static std::unordered_map<uintptr_t, size_t> my_allocs;
 
 /**
  * dmalloc(sz,file,line)
@@ -17,7 +21,29 @@
 void* dmalloc(size_t sz, const char* file, long line) {
     (void) file, (void) line;   // avoid uninitialized variable warnings
     // Your code here.
-    return base_malloc(sz);
+    uintptr_t *ptr = (uintptr_t *)base_malloc(sz);
+    if (ptr == NULL) {
+        my_stats.nfail += 1;
+        my_stats.fail_size = sz;
+        return ptr;
+    }
+
+    if (my_stats.heap_min == 0)
+        my_stats.heap_min = (uintptr_t)ptr;
+
+    if ((uintptr_t)ptr < my_stats.heap_min)
+        my_stats.heap_min = (uintptr_t)ptr;
+    
+    if ((uintptr_t)ptr > my_stats.heap_max)
+        my_stats.heap_max = (uintptr_t)ptr + (uintptr_t)sz;
+
+    my_stats.nactive += 1;
+    my_stats.ntotal += 1; 
+    my_stats.total_size += sz;
+    my_stats.active_size = my_stats.total_size;
+    my_allocs[reinterpret_cast<uintptr_t>(ptr)] = sz;
+
+    return ptr;
 }
 
 /**
@@ -32,7 +58,11 @@ void* dmalloc(size_t sz, const char* file, long line) {
 void dfree(void* ptr, const char* file, long line) {
     (void) file, (void) line;   // avoid uninitialized variable warnings
     // Your code here.
-    base_free(ptr);
+    if (ptr != NULL) {
+        my_stats.nactive -= 1;
+        my_stats.active_size -= my_allocs[reinterpret_cast<uintptr_t>(ptr)];
+        base_free(ptr);
+    }
 }
 
 /**
@@ -65,8 +95,16 @@ void* dcalloc(size_t nmemb, size_t sz, const char* file, long line) {
  */
 void get_statistics(dmalloc_stats* stats) {
     // Stub: set all statistics to enormous numbers
-    memset(stats, 255, sizeof(dmalloc_stats));
+    memset(stats, '\x00', sizeof(dmalloc_stats));
     // Your code here.
+    stats->nactive = my_stats.nactive;
+    stats->active_size = my_stats.active_size;
+    stats->ntotal = my_stats.ntotal;
+    stats->total_size = my_stats.total_size;
+    stats->nfail = my_stats.nfail;
+    stats->fail_size = my_stats.fail_size;
+    stats->heap_min = my_stats.heap_min;
+    stats->heap_max = my_stats.heap_max;
 }
 
 /**
