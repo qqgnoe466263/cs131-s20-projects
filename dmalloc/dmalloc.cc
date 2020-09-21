@@ -6,6 +6,7 @@
 
 dmalloc_stats my_stats;
 static std::unordered_map<uintptr_t, size_t> my_allocs;
+static std::unordered_map<uintptr_t, size_t> double_free_detect;
 
 /**
  * dmalloc(sz,file,line)
@@ -42,6 +43,7 @@ void* dmalloc(size_t sz, const char* file, long line) {
     my_stats.total_size += sz;
     my_stats.active_size = my_stats.total_size;
     my_allocs[reinterpret_cast<uintptr_t>(ptr)] = sz;
+    double_free_detect[reinterpret_cast<uintptr_t>(ptr)] = 2;
 
     return ptr;
 }
@@ -58,11 +60,30 @@ void* dmalloc(size_t sz, const char* file, long line) {
 void dfree(void* ptr, const char* file, long line) {
     (void) file, (void) line;   // avoid uninitialized variable warnings
     // Your code here.
+   
+    if (ptr != NULL && ((uintptr_t)ptr < my_stats.heap_min 
+                || (uintptr_t)ptr > my_stats.heap_max)) {
+        fprintf(stderr, "MEMORY BUG???: invalid free of pointer ???, not in heap");
+        abort();
+    }
+
+    if (ptr != NULL && double_free_detect[reinterpret_cast<uintptr_t>(ptr)] == 1) {
+        fprintf(stderr, "MEMORY BUG???: invalid free of pointer %p, double free", ptr);
+        abort();
+    }
+
+    if (ptr != NULL && double_free_detect[reinterpret_cast<uintptr_t>(ptr)] == 0) {
+        fprintf(stderr, "MEMORY BUG???: invalid free of pointer %p, not allocated", ptr);
+        abort();
+    }
+
     if (ptr != NULL) {
         my_stats.nactive -= 1;
         my_stats.active_size -= my_allocs[reinterpret_cast<uintptr_t>(ptr)];
         base_free(ptr);
     }
+    
+    double_free_detect[reinterpret_cast<uintptr_t>(ptr)] = 1;
 }
 
 /**
@@ -80,10 +101,18 @@ void dfree(void* ptr, const char* file, long line) {
  */
 void* dcalloc(size_t nmemb, size_t sz, const char* file, long line) {
     // Your code here (to fix test014).
-    void* ptr = dmalloc(nmemb * sz, file, line);
+
+    size_t real_size = nmemb * sz;
+    if (real_size < nmemb || real_size < sz) {
+        my_stats.nfail += 1;
+        return NULL; 
+    }
+
+    void* ptr = dmalloc(real_size, file, line);
     if (ptr) {
         memset(ptr, 0, nmemb * sz);
     }
+
     return ptr;
 }
 
