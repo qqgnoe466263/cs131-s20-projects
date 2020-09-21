@@ -1,12 +1,14 @@
 #define DMALLOC_DISABLE 1
 #include "dmalloc.hh"
 #include <unordered_map>
+#include <map>
 #include <cassert>
 #include <cstring>
 
 dmalloc_stats my_stats;
 static std::unordered_map<uintptr_t, size_t> my_allocs;
-static std::unordered_map<uintptr_t, size_t> double_free_detect;
+static std::map<uintptr_t, size_t> double_free_detect;
+static std::map<uintptr_t, long> dmalloc_line;
 
 /**
  * dmalloc(sz,file,line)
@@ -22,7 +24,12 @@ static std::unordered_map<uintptr_t, size_t> double_free_detect;
 void* dmalloc(size_t sz, const char* file, long line) {
     (void) file, (void) line;   // avoid uninitialized variable warnings
     // Your code here.
-    uintptr_t *ptr = (uintptr_t *)base_malloc(sz);
+  
+    size_t sz_bound = sz;
+    if (sz_bound < 0xffffffffffffffff)
+        sz_bound = (sz_bound + 0x10) & 0xffffffffffffffff;
+
+    uintptr_t *ptr = (uintptr_t *)base_malloc(sz_bound);
     if (ptr == NULL) {
         my_stats.nfail += 1;
         my_stats.fail_size = sz;
@@ -41,9 +48,14 @@ void* dmalloc(size_t sz, const char* file, long line) {
     my_stats.nactive += 1;
     my_stats.ntotal += 1; 
     my_stats.total_size += sz;
-    my_stats.active_size = my_stats.total_size;
+    my_stats.active_size += sz;
+
+    uintptr_t *ptr_bound = (uintptr_t *)((uintptr_t)ptr + sz);
+    *((char *)ptr_bound) = '\xCC';
+
     my_allocs[reinterpret_cast<uintptr_t>(ptr)] = sz;
     double_free_detect[reinterpret_cast<uintptr_t>(ptr)] = 2;
+    dmalloc_line[reinterpret_cast<uintptr_t>(ptr)] = line;
 
     return ptr;
 }
@@ -73,13 +85,21 @@ void dfree(void* ptr, const char* file, long line) {
     }
 
     if (ptr != NULL && double_free_detect[reinterpret_cast<uintptr_t>(ptr)] == 0) {
-        fprintf(stderr, "MEMORY BUG???: invalid free of pointer %p, not allocated", ptr);
+        fprintf(stderr, "MEMORY BUG: %s:%lu: invalid free of pointer %p, not allocated",
+                file, line, ptr);
         abort();
     }
-
+    
     if (ptr != NULL) {
+        size_t sz = my_allocs[reinterpret_cast<uintptr_t>(ptr)];
+        uintptr_t *ptr_bound = (uintptr_t *)((uintptr_t)ptr + sz);
+        if (*((char *)ptr_bound) != '\xCC') {
+            fprintf(stderr, "MEMORY BUG???: detected wild write during free of pointer %p", ptr);
+            abort();
+        }
+
         my_stats.nactive -= 1;
-        my_stats.active_size -= my_allocs[reinterpret_cast<uintptr_t>(ptr)];
+        my_stats.active_size -= sz;
         base_free(ptr);
     }
     
@@ -157,4 +177,14 @@ void print_statistics() {
  */
 void print_leak_report() {
     // Your code here.
+
+    for (auto it = double_free_detect.begin();
+            it != double_free_detect.end(); it++) {
+        if (it->second == 2) {
+            size_t sz = my_allocs[(uintptr_t)it->first];
+            long line = dmalloc_line[(uintptr_t)it->first];
+            printf("LEAK CHECK: test???.cc:%lu: allocated object %p with size %lu\n",
+                    line ,(void *)it->first, sz);
+        }
+    }
 }
