@@ -54,8 +54,8 @@ void* dmalloc(size_t sz, const char* file, long line) {
     *((char *)ptr_bound) = '\xCC';
 
     my_allocs[reinterpret_cast<uintptr_t>(ptr)] = sz;
-    double_free_detect[reinterpret_cast<uintptr_t>(ptr)] = 2;
     dmalloc_line[reinterpret_cast<uintptr_t>(ptr)] = line;
+    double_free_detect[reinterpret_cast<uintptr_t>(ptr)] = (uintptr_t)ptr << 8 | 0x2;
 
     return ptr;
 }
@@ -72,24 +72,44 @@ void* dmalloc(size_t sz, const char* file, long line) {
 void dfree(void* ptr, const char* file, long line) {
     (void) file, (void) line;   // avoid uninitialized variable warnings
     // Your code here.
-   
+    
     if (ptr != NULL && ((uintptr_t)ptr < my_stats.heap_min 
                 || (uintptr_t)ptr > my_stats.heap_max)) {
-        fprintf(stderr, "MEMORY BUG???: invalid free of pointer ???, not in heap");
+        fprintf(stderr, "MEMORY BUG???: invalid free of pointer ???, not in heap\n");
         abort();
     }
 
-    if (ptr != NULL && double_free_detect[reinterpret_cast<uintptr_t>(ptr)] == 1) {
-        fprintf(stderr, "MEMORY BUG???: invalid free of pointer %p, double free", ptr);
+    if (ptr != NULL && (double_free_detect[reinterpret_cast<uintptr_t>(ptr)] & 0xf) == 1) {
+        fprintf(stderr, "MEMORY BUG???: invalid free of pointer %p, double free\n", ptr);
         abort();
     }
 
-    if (ptr != NULL && double_free_detect[reinterpret_cast<uintptr_t>(ptr)] == 0) {
-        fprintf(stderr, "MEMORY BUG: %s:%lu: invalid free of pointer %p, not allocated",
+    if (ptr != NULL && (double_free_detect[reinterpret_cast<uintptr_t>(ptr)] & 0xf) == 0) {
+        fprintf(stderr, "MEMORY BUG: %s:%lu: invalid free of pointer %p, not allocated\n",
                 file, line, ptr);
+        for (auto it = double_free_detect.begin();
+                it != double_free_detect.end(); it++) {
+            if ((it->second & 0xf) == 2) {
+                size_t sz_check = my_allocs[(uintptr_t)it->first];
+                if ((uintptr_t)ptr > (uintptr_t)it->first && 
+                        (uintptr_t)ptr < (uintptr_t)it->first + sz_check) {
+                    size_t diff = (uintptr_t)ptr - (uintptr_t)it->first;
+                    line = dmalloc_line[(uintptr_t)it->first];
+                    fprintf(stderr, "%s:%lu: ??? is %lu bytes inside a %lu byte region allocated here",
+                            file, line, diff, sz_check);
+                    abort();
+                }
+            }
+        }
         abort();
     }
-    
+
+    if (ptr != NULL 
+            && (double_free_detect[reinterpret_cast<uintptr_t>(ptr)] >> 8) != (uintptr_t)ptr) {
+        fprintf(stderr, "MEMORY BUG???: invalid free of pointer %p, memory corruption\n", ptr);
+        abort();
+    }
+
     if (ptr != NULL) {
         size_t sz = my_allocs[reinterpret_cast<uintptr_t>(ptr)];
         uintptr_t *ptr_bound = (uintptr_t *)((uintptr_t)ptr + sz);
@@ -103,7 +123,7 @@ void dfree(void* ptr, const char* file, long line) {
         base_free(ptr);
     }
     
-    double_free_detect[reinterpret_cast<uintptr_t>(ptr)] = 1;
+    double_free_detect[reinterpret_cast<uintptr_t>(ptr)] = 0xff01;
 }
 
 /**
@@ -180,7 +200,7 @@ void print_leak_report() {
 
     for (auto it = double_free_detect.begin();
             it != double_free_detect.end(); it++) {
-        if (it->second == 2) {
+        if ((it->second & 0xf) == 2) {
             size_t sz = my_allocs[(uintptr_t)it->first];
             long line = dmalloc_line[(uintptr_t)it->first];
             printf("LEAK CHECK: test???.cc:%lu: allocated object %p with size %lu\n",
