@@ -108,6 +108,14 @@ template <typename T>
 bool synchronized_queue<T>::pop(T *elt)
 {
     // TODO: implement
+    if (this->q.size() == 0)
+        return false;
+    
+    this->mtx.lock();
+    *elt = this->q.front();
+    this->q.pop();
+    this->mtx.unlock();
+
     return false;
 }
 
@@ -115,6 +123,9 @@ template <typename T>
 void synchronized_queue<T>::push(T elt)
 {
     // TODO: implement
+    this->mtx.lock();
+    this->q.push(elt);
+    this->mtx.unlock();
 }
 
 template <typename T>
@@ -122,6 +133,13 @@ std::vector<T> synchronized_queue<T>::flush()
 {
     std::vector<T> elts;
     // TODO: implement
+    while (this->q.size()) {
+        this->mtx.lock();
+        elts.push_back(this->q.front());
+        this->q.pop();
+        this->mtx.unlock();
+    }
+
     return elts;
 }
 
