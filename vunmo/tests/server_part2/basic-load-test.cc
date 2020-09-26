@@ -1,32 +1,35 @@
-#include "../../tests.hh"
 #include "../../network_helpers.hh"
-#include "../../vunmo-server.hh"
+#include "../../tests.hh"
 #include "../../vunmo-client.hh"
+#include "../../vunmo-server.hh"
 
 #define NUM_CLIENTS 30
 #define INITIAL_DEPOSIT 1000000
 
 /**
- * A helper function that checks for any charge notifications and replies to them. Note that we
- * always accept charge requests in this test.
+ * A helper function that checks for any charge notifications and replies to
+ * them. Note that we always accept charge requests in this test.
  */
-int accept_charges(Client *c) {
+int accept_charges(Client *c)
+{
     int err;
     auto ns = c->get_notifications();
-    for (auto & n : ns) {
+    for (auto &n : ns) {
         if (n.type == CHARGE_REQUEST_NOTIFICATION) {
             err = c->handle_charge_request(&n, true);
-            if (err < 0) return err;
+            if (err < 0)
+                return err;
         }
     }
     return 0;
 }
 
 /**
- * A helper function run by each client thread. Randomly pays or charges another client that is
- * also chosen randomly.
+ * A helper function run by each client thread. Randomly pays or charges another
+ * client that is also chosen randomly.
  */
-int interactions(Client *c) {
+int interactions(Client *c)
+{
     response_t resp;
 
     int err;
@@ -35,13 +38,16 @@ int interactions(Client *c) {
         uint64_t target_id2 = rand() % NUM_CLIENTS;
 
         err = c->pay(target_id1, i, &resp);
-        if (err < 0) return err;
-        err = c->charge(target_id2, 1000-i, &resp);
-        if (err < 0) return err;
+        if (err < 0)
+            return err;
+        err = c->charge(target_id2, 1000 - i, &resp);
+        if (err < 0)
+            return err;
 
         if (i % 10 == 0) {
             err = accept_charges(c);
-            if (err < 0) return err;
+            if (err < 0)
+                return err;
         }
     }
     return 0;
@@ -50,11 +56,13 @@ int interactions(Client *c) {
 /**
  * Basic Load Test
  *
- * Creates NUM_CLIENTS number of clients, and each client randomly pays or charges another client,
- * also chosen randomly. The test ensures that the initial total amount of money has not changed
- * at the end (no money lost, no hanging request). The test serves as a basic load test.
+ * Creates NUM_CLIENTS number of clients, and each client randomly pays or
+ * charges another client, also chosen randomly. The test ensures that the
+ * initial total amount of money has not changed at the end (no money lost, no
+ * hanging request). The test serves as a basic load test.
  */
-int main() {
+int main()
+{
     srand(time(nullptr));
     // Create and start server.
     Server s;
@@ -85,7 +93,7 @@ int main() {
     }
 
     int total_sum = 0;
-    for(int i = 0; i < NUM_CLIENTS; i++) {
+    for (int i = 0; i < NUM_CLIENTS; i++) {
         // Attach all client threads.
         client_threads[i].join();
         clients[i]->disconnect();
@@ -101,10 +109,12 @@ int main() {
         printf("Client %lu finished with $%lu\n", it->first, it->second);
     }
 
-    // Assert that we didn't lose any money; the total amount of money should be the same
-    // at the end.
+    // Assert that we didn't lose any money; the total amount of money should be
+    // the same at the end.
     if (total_sum != NUM_CLIENTS * INITIAL_DEPOSIT) {
-        fprintf(stderr, "Total sum of money at the end doesn't match initial total sum");
+        fprintf(
+            stderr,
+            "Total sum of money at the end doesn't match initial total sum");
         return 1;
     }
 

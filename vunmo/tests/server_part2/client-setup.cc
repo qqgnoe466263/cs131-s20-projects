@@ -1,7 +1,7 @@
 #include "../../network_helpers.hh"
-#include "../../vunmo-server.hh"
-#include "../../vunmo-client.hh"
 #include "../../tests.hh"
+#include "../../vunmo-client.hh"
+#include "../../vunmo-server.hh"
 
 /**
  * Client Setup
@@ -10,12 +10,13 @@
  * Checks that the client exists in the server's client map with its ID
  * and initial amount of 0 in its account.
  */
-int main() {
+int main()
+{
     // Create and start server.
     Server s;
     s.start(port, N_WORKERS);
 
-    sleep(1); // give the server time to start
+    sleep(1);  // give the server time to start
 
     Client client;
     client.id = CLIENT_ID;

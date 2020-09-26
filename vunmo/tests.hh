@@ -9,6 +9,6 @@
 #define TARGET_CLIENT_ID 456
 #define DEPOSIT_AMOUNT 1000
 
-const char* host_str = "127.0.0.1";
-const char* port_str = "13131";
+const char *host_str = "127.0.0.1";
+const char *port_str = "13131";
 const int port = 13131;

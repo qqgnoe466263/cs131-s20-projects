@@ -1,15 +1,17 @@
-#include "../../vunmo-server.hh"
-#include "../../vunmo-client.hh"
 #include "../../tests.hh"
+#include "../../vunmo-client.hh"
+#include "../../vunmo-server.hh"
 
 #define CHARGE_AMOUNT 500
 
 /**
  * Charge Request Decline
  *
- * Tests that a client can charge another client, and the target client can decline.
+ * Tests that a client can charge another client, and the target client can
+ * decline.
  */
-int main() {
+int main()
+{
     // Create and start server.
     Server s;
     s.start(port, N_WORKERS);
@@ -42,7 +44,7 @@ int main() {
     }
 
     // Try charging the target client CHARGE_AMOUNT amount of money.
-    if(client.charge(TARGET_CLIENT_ID, CHARGE_AMOUNT, &resp) < 0) {
+    if (client.charge(TARGET_CLIENT_ID, CHARGE_AMOUNT, &resp) < 0) {
         fprintf(stderr, "Client failed to send a charge request.\n");
         return 1;
     }
@@ -54,16 +56,16 @@ int main() {
     sleep(1);
 
     // Get target's notifications.
-    std::vector<notification_t> notifications = target_client.get_notifications();
+    std::vector<notification_t> notifications =
+        target_client.get_notifications();
     if (notifications.empty()) {
         fprintf(stderr, "Target did not receive any notifications.\n");
         return 1;
     }
     // Check that target received a correct notification.
     notification_t notif = notifications.front();
-    if (notif.type != CHARGE_REQUEST_NOTIFICATION
-        || notif.origin_client_id != CLIENT_ID
-        || notif.amount != CHARGE_AMOUNT) {
+    if (notif.type != CHARGE_REQUEST_NOTIFICATION ||
+        notif.origin_client_id != CLIENT_ID || notif.amount != CHARGE_AMOUNT) {
         fprintf(stderr, "Target client received incorrect notification.\n");
         return 1;
     }
@@ -78,18 +80,19 @@ int main() {
         fprintf(stderr, "Client failed to send a balance request.\n");
         return 1;
     }
-    if(!resp.success || resp.amount != 0) {
+    if (!resp.success || resp.amount != 0) {
         fprintf(stderr, "Client's balance changed when it shouldn't have.\n");
         return 1;
     }
 
     // Check that target's account has not changed.
-    if(target_client.get_balance(&resp) < 0) {
+    if (target_client.get_balance(&resp) < 0) {
         fprintf(stderr, "Target client failed to send a balance request.\n");
         return 1;
     }
-    if(!resp.success || resp.amount != DEPOSIT_AMOUNT) {
-        fprintf(stderr, "Target client's balance changed when it shouldn't have.\n");
+    if (!resp.success || resp.amount != DEPOSIT_AMOUNT) {
+        fprintf(stderr,
+                "Target client's balance changed when it shouldn't have.\n");
         return 1;
     }
 

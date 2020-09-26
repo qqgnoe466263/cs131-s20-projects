@@ -1,13 +1,14 @@
 #pragma once
 
-#include "network_helpers.hh"
-#include "common.hh"
-#include "synchronized_queue.cc"
 #include <atomic>
+#include "common.hh"
+#include "network_helpers.hh"
+#include "synchronized_queue.cc"
 
 #include <cinttypes>
 
-class Client {
+class Client
+{
 public:
     // Client ID
     uint64_t id;
@@ -19,7 +20,7 @@ public:
      * @param port: Server's port
      * @return 0 on success, or -1 on failure.
      */
-    int connect(const char* host, const char* port);
+    int connect(const char *host, const char *port);
 
     /**
      * Disconnects from server and shuts down notification queue.
@@ -87,7 +88,8 @@ public:
      * Respond to charge notification.
      *
      * @param n: Charge notification
-     * @param accept: True if we are accepting the charge, or false if we are not
+     * @param accept: True if we are accepting the charge, or false if we are
+     * not
      * @return 0 on success, or -1 on failure
      */
     int handle_charge_request(notification_t *n, bool accept);
@@ -118,17 +120,17 @@ private:
     // Request and notification file descriptors
     int request_fd, notification_fd;
     // Notification queue
-    synchronized_queue<notification_t*> notification_queue;
+    synchronized_queue<notification_t *> notification_queue;
     // Thread that listens for notifications from server
     std::thread notification_listener;
     // Atomic, thread-safe boolean for whether the client has been stopped
     std::atomic_bool is_stopped{false};
-    // Atomic, thread-safe boolean for whether the client is connected to server.
+    // Atomic, thread-safe boolean for whether the client is connected to
+    // server.
     std::atomic_bool is_connected{false};
 
     /**
      * Continually listen for notifications from network and add them to queue.
      */
     void receive_notifications();
-
 };

@@ -7,7 +7,8 @@
  * Use a single thread to first push all and then pop all elements in order.
  */
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
     synchronized_queue<int> q;
 
     // push all elements
@@ -16,7 +17,8 @@ int main(int argc, char** argv) {
     }
     std::size_t s = q.size();
     if (s != NUM_ELTS) {
-        fprintf(stderr, "Pushed %d elements but queue has size %d.\n", NUM_ELTS, (int) s);
+        fprintf(stderr, "Pushed %d elements but queue has size %d.\n", NUM_ELTS,
+                (int) s);
         return 1;
     }
     // pop all elements

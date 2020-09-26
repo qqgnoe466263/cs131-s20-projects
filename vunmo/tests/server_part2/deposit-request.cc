@@ -1,13 +1,14 @@
-#include "../../vunmo-server.hh"
-#include "../../vunmo-client.hh"
 #include "../../tests.hh"
+#include "../../vunmo-client.hh"
+#include "../../vunmo-server.hh"
 
 /**
  * Deposit Request
  *
  * Tests that a client can deposit properly.
  */
-int main() {
+int main()
+{
     // Create and start server.
     Server s;
     s.start(port, N_WORKERS);
@@ -21,7 +22,7 @@ int main() {
         return 1;
     }
 
-    response_t resp; // not used
+    response_t resp;  // not used
     if (client.deposit(DEPOSIT_AMOUNT, &resp) < 0) {
         fprintf(stderr, "Client failed to deposit properly.\n");
         return 1;

@@ -7,7 +7,8 @@
  * Use a single thread to push and pop elements in order, one at a time.
  */
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
     synchronized_queue<int> q;
 
     std::size_t s;
@@ -20,7 +21,8 @@ int main(int argc, char** argv) {
         q.push(i);
         s = q.size();
         if (s != 1) {
-            fprintf(stderr, "Queue should have size 1 but has size %d.\n", (int) s);
+            fprintf(stderr, "Queue should have size 1 but has size %d.\n",
+                    (int) s);
             return 1;
         }
         // pop, check stopped, elt, size
@@ -35,7 +37,8 @@ int main(int argc, char** argv) {
         }
         s = q.size();
         if (s != 0) {
-            fprintf(stderr, "Queue should be empty but has size %d.\n", (int) s);
+            fprintf(stderr, "Queue should be empty but has size %d.\n",
+                    (int) s);
             return 1;
         }
     }

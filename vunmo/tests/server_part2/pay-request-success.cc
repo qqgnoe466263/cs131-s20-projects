@@ -1,6 +1,6 @@
-#include "../../vunmo-server.hh"
-#include "../../vunmo-client.hh"
 #include "../../tests.hh"
+#include "../../vunmo-client.hh"
+#include "../../vunmo-server.hh"
 
 #define PAYMENT_AMOUNT 500
 
@@ -9,7 +9,8 @@
  *
  * Tests that a client can withdraw properly.
  */
-int main() {
+int main()
+{
     // Create and start server.
     Server s;
     s.start(port, N_WORKERS);
@@ -42,7 +43,7 @@ int main() {
     }
 
     // Try paying the target client PAYMENT_AMOUNT amount of money.
-    if(client.pay(TARGET_CLIENT_ID, PAYMENT_AMOUNT, &resp) < 0) {
+    if (client.pay(TARGET_CLIENT_ID, PAYMENT_AMOUNT, &resp) < 0) {
         fprintf(stderr, "Client failed to send a pay request.\n");
         return 1;
     }
@@ -52,12 +53,13 @@ int main() {
     }
 
     // Check that PAYMENT_AMOUNT amount of money is now in target's account.
-    if(target_client.get_balance(&resp) < 0) {
+    if (target_client.get_balance(&resp) < 0) {
         fprintf(stderr, "Target client failed to send a balance request.\n");
         return 1;
     }
-    if(!resp.success || resp.amount != PAYMENT_AMOUNT) {
-        fprintf(stderr, "Payment was not properly reflected in target's account.\n");
+    if (!resp.success || resp.amount != PAYMENT_AMOUNT) {
+        fprintf(stderr,
+                "Payment was not properly reflected in target's account.\n");
         return 1;
     }
 

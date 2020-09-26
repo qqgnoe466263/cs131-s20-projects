@@ -1,15 +1,17 @@
-#include "../../vunmo-server.hh"
-#include "../../vunmo-client.hh"
 #include "../../tests.hh"
+#include "../../vunmo-client.hh"
+#include "../../vunmo-server.hh"
 
 #define PAYMENT_AMOUNT 500
 
 /**
  * Pay Request Insufficient Balance
  *
- * Tests that a client's pay request doesn't go through when the client doesn't have enough money.
+ * Tests that a client's pay request doesn't go through when the client doesn't
+ * have enough money.
  */
-int main() {
+int main()
+{
     // Create and start server.
     Server s;
     s.start(port, N_WORKERS);
@@ -41,23 +43,27 @@ int main() {
         return 1;
     }
 
-    // Try paying the target client more than client's balance. This should fail.
-    if(client.pay(TARGET_CLIENT_ID, DEPOSIT_AMOUNT * 2, &resp) < 0) {
+    // Try paying the target client more than client's balance. This should
+    // fail.
+    if (client.pay(TARGET_CLIENT_ID, DEPOSIT_AMOUNT * 2, &resp) < 0) {
         fprintf(stderr, "Client failed to send a pay request.\n");
         return 1;
     }
     if (resp.success || resp.amount != DEPOSIT_AMOUNT) {
-        fprintf(stderr, "Client's payment went through when it should have failed.\n");
+        fprintf(stderr,
+                "Client's payment went through when it should have failed.\n");
         return 1;
     }
 
     // Check that target's balance hasn't changed.
-    if(target_client.get_balance(&resp) < 0) {
+    if (target_client.get_balance(&resp) < 0) {
         fprintf(stderr, "Target client failed to send a balance request.\n");
         return 1;
     }
-    if(!resp.success || resp.amount != 0) {
-        fprintf(stderr, "Target client's balance has changed when it shouldn't have.\n");
+    if (!resp.success || resp.amount != 0) {
+        fprintf(
+            stderr,
+            "Target client's balance has changed when it shouldn't have.\n");
         return 1;
     }
 

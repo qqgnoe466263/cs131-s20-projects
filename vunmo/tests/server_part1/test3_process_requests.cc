@@ -1,8 +1,9 @@
-#include "../../vunmo-server.hh"
-#include "../../vunmo-client.hh"
 #include "../../tests.hh"
+#include "../../vunmo-client.hh"
+#include "../../vunmo-server.hh"
 
-int main() {
+int main()
+{
     int err;
 
     // Create and start server.
@@ -13,7 +14,7 @@ int main() {
         return -1;
     }
 
-    sleep(1); // give the server time to start
+    sleep(1);  // give the server time to start
 
     Client c;
     c.id = CLIENT_ID;

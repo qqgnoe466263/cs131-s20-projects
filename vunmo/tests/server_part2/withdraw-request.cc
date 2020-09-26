@@ -1,6 +1,6 @@
-#include "../../vunmo-server.hh"
-#include "../../vunmo-client.hh"
 #include "../../tests.hh"
+#include "../../vunmo-client.hh"
+#include "../../vunmo-server.hh"
 
 #define WITHDRAW_AMOUNT 500
 
@@ -9,7 +9,8 @@
  *
  * Tests that a client can withdraw properly.
  */
-int main() {
+int main()
+{
     // Create and start server.
     Server s;
     s.start(port, N_WORKERS);
@@ -34,17 +35,18 @@ int main() {
     }
 
     // Try withdrawing more than what is in the account. This should fail.
-    if(client.withdraw(DEPOSIT_AMOUNT * 2, &resp) < 0) {
+    if (client.withdraw(DEPOSIT_AMOUNT * 2, &resp) < 0) {
         fprintf(stderr, "Client failed to send a withdraw request.\n");
         return 1;
     }
     if (resp.success || resp.amount != DEPOSIT_AMOUNT) {
-        fprintf(stderr, "Client's withdrawal succeeded when it should have failed.\n");
+        fprintf(stderr,
+                "Client's withdrawal succeeded when it should have failed.\n");
         return 1;
     }
 
     // Try withdrawing some amount. This should go through.
-    if(client.withdraw(WITHDRAW_AMOUNT, &resp) < 0) {
+    if (client.withdraw(WITHDRAW_AMOUNT, &resp) < 0) {
         fprintf(stderr, "Client failed to send a withdraw request.\n");
         return 1;
     }

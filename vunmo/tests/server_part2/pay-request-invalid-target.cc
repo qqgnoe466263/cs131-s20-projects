@@ -1,16 +1,18 @@
-#include "../../vunmo-server.hh"
-#include "../../vunmo-client.hh"
 #include "../../tests.hh"
+#include "../../vunmo-client.hh"
+#include "../../vunmo-server.hh"
 
 #define PAYMENT_AMOUNT 500
 
 /**
  * Pay Request Invalid Target
  *
- * Tests that a client's pay request doesn't go through when the target client doesn't exist.
+ * Tests that a client's pay request doesn't go through when the target client
+ * doesn't exist.
  */
-int main() {
-     // Create and start server.
+int main()
+{
+    // Create and start server.
     Server s;
     s.start(port, N_WORKERS);
 
@@ -35,12 +37,13 @@ int main() {
     }
 
     // Try payment the target client PAYMENT_AMOUNT amount of money.
-    if(client.pay(TARGET_CLIENT_ID, PAYMENT_AMOUNT, &resp) < 0) {
+    if (client.pay(TARGET_CLIENT_ID, PAYMENT_AMOUNT, &resp) < 0) {
         fprintf(stderr, "Client failed to send a pay request.\n");
         return 1;
     }
     if (resp.success || resp.amount == DEPOSIT_AMOUNT - PAYMENT_AMOUNT) {
-        fprintf(stderr, "Client's payment went through when it should have failed.\n");
+        fprintf(stderr,
+                "Client's payment went through when it should have failed.\n");
         return 1;
     }
 

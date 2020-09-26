@@ -33,7 +33,7 @@
  * @param port: Port that listener is running on
  * @return file descriptor of the new connection on success; -1 on failure
  */
-int create_connection(const char* host, const char* port);
+int create_connection(const char *host, const char *port);
 
 /**
  * Open a socket for listening on `port`. The socket will accept

@@ -1,6 +1,7 @@
 #include "vunmo-client.hh"
 
-int Client::get_balance(response_t *resp){
+int Client::get_balance(response_t *resp)
+{
     request_t req;
     // prepare request
     req.type = BALANCE;
@@ -9,7 +10,8 @@ int Client::get_balance(response_t *resp){
 }
 
 
-int Client::deposit(uint64_t amount, response_t *resp){
+int Client::deposit(uint64_t amount, response_t *resp)
+{
     request_t req;
     // prepare request
     req.type = DEPOSIT;
@@ -19,7 +21,8 @@ int Client::deposit(uint64_t amount, response_t *resp){
 }
 
 
-int Client::withdraw(uint64_t amount, response_t *resp){
+int Client::withdraw(uint64_t amount, response_t *resp)
+{
     request_t req;
     // prepare request
     req.type = WITHDRAWAL;
@@ -29,7 +32,8 @@ int Client::withdraw(uint64_t amount, response_t *resp){
 }
 
 
-int Client::pay(uint64_t target_id, uint64_t amount, response_t *resp){
+int Client::pay(uint64_t target_id, uint64_t amount, response_t *resp)
+{
     request_t req;
     // prepare request
     req.type = PAYMENT;
@@ -40,7 +44,8 @@ int Client::pay(uint64_t target_id, uint64_t amount, response_t *resp){
 }
 
 
-int Client::charge(uint64_t target_id, uint64_t amount, response_t *resp){
+int Client::charge(uint64_t target_id, uint64_t amount, response_t *resp)
+{
     request_t req;
     // prepare request
     req.type = CHARGE;
@@ -51,7 +56,8 @@ int Client::charge(uint64_t target_id, uint64_t amount, response_t *resp){
 }
 
 
-int Client::make_request(request_t *req, response_t *resp) {
+int Client::make_request(request_t *req, response_t *resp)
+{
     if (!this->is_connected.load()) {
         return -1;
     }
@@ -74,12 +80,14 @@ int Client::make_request(request_t *req, response_t *resp) {
 }
 
 
-int Client::handle_charge_request(notification_t *n, bool accept) {
+int Client::handle_charge_request(notification_t *n, bool accept)
+{
     request_t req;
-    response_t dummy_resp; // won't be used anywhere
+    response_t dummy_resp;  // won't be used anywhere
 
     // if decline, do nothing
-    if (!accept) return 0;
+    if (!accept)
+        return 0;
 
     // prepare payment request
     req.type = PAYMENT;
@@ -92,7 +100,8 @@ int Client::handle_charge_request(notification_t *n, bool accept) {
 }
 
 
-int Client::print_charge_request(notification_t *n) {
+int Client::print_charge_request(notification_t *n)
+{
     int to_read = 3;
     char resp[to_read];
     bool charge_accepted;
@@ -107,9 +116,9 @@ int Client::print_charge_request(notification_t *n) {
             return -1;
         }
         // parse response
-        if(strcmp(resp, "y\n") == 0) {
+        if (strcmp(resp, "y\n") == 0) {
             charge_accepted = true;
-        } else if(strcmp(resp, "n\n") == 0) {
+        } else if (strcmp(resp, "n\n") == 0) {
             charge_accepted = false;
         } else {
             continue;
@@ -121,7 +130,8 @@ int Client::print_charge_request(notification_t *n) {
 }
 
 
-int Client::display_notifications() {
+int Client::display_notifications()
+{
     auto ns = this->get_notifications();
     notification_t n;
 
@@ -133,8 +143,10 @@ int Client::display_notifications() {
         // handle charge request
         if (n.type == CHARGE_REQUEST_NOTIFICATION) {
             if (this->print_charge_request(&n) < 0) {
-                printf("[ERROR] Unable to handle a charge request of %lu from %lu.\n",
-                       n.amount, n.origin_client_id);
+                printf(
+                    "[ERROR] Unable to handle a charge request of %lu from "
+                    "%lu.\n",
+                    n.amount, n.origin_client_id);
             }
         }
     }
@@ -142,9 +154,10 @@ int Client::display_notifications() {
 }
 
 
-std::vector<notification_t> Client::get_notifications() {
+std::vector<notification_t> Client::get_notifications()
+{
     std::vector<notification_t> ns;
-    for (auto & n : this->notification_queue.flush()) {
+    for (auto &n : this->notification_queue.flush()) {
         ns.push_back(*n);
         delete n;
     }
@@ -152,11 +165,13 @@ std::vector<notification_t> Client::get_notifications() {
 }
 
 
-void Client::receive_notifications(){
+void Client::receive_notifications()
+{
     while (!this->is_stopped.load()) {
         // read notification
         notification_t n;
-        int bytes_read = read(this->notification_fd, &n, sizeof(notification_t));
+        int bytes_read =
+            read(this->notification_fd, &n, sizeof(notification_t));
         if (bytes_read < (int) sizeof(notification_t)) {
             continue;
         }
@@ -171,7 +186,11 @@ void Client::receive_notifications(){
 /**
  * Continually listen for notifications from network and add them to queue.
  */
-int send_hello(const char* host, const char* port, uint64_t client_id, hello_type type) {
+int send_hello(const char *host,
+               const char *port,
+               uint64_t client_id,
+               hello_type type)
+{
     // create connection
     int fd = create_connection(host, port);
     if (fd < 0) {
@@ -188,24 +207,30 @@ int send_hello(const char* host, const char* port, uint64_t client_id, hello_typ
     return fd;
 }
 
-int Client::connect(const char* host, const char* port) {
+int Client::connect(const char *host, const char *port)
+{
     // create connection for requests
     this->request_fd = send_hello(host, port, this->id, REQUESTS_HELLO);
-    if (this->request_fd < 0) return -1;
+    if (this->request_fd < 0)
+        return -1;
 
     // create connection for notifications
-    this->notification_fd = send_hello(host, port, this->id, NOTIFICATIONS_HELLO);
-    if (this->notification_fd < 0) return -1;
+    this->notification_fd =
+        send_hello(host, port, this->id, NOTIFICATIONS_HELLO);
+    if (this->notification_fd < 0)
+        return -1;
 
     this->is_connected.store(true);
 
     // start thread for receiving notifications
-    this->notification_listener = std::thread(&Client::receive_notifications, this);
+    this->notification_listener =
+        std::thread(&Client::receive_notifications, this);
 
     return 0;
 }
 
-int Client::disconnect(){
+int Client::disconnect()
+{
     this->is_stopped.store(true);
     this->is_connected.store(false);
 
@@ -216,8 +241,8 @@ int Client::disconnect(){
 
     // stop notification queue
     this->notification_queue.stop();
-    for (auto & n : this->notification_queue.flush()) delete n;
+    for (auto &n : this->notification_queue.flush())
+        delete n;
 
     return 0;
-
 }

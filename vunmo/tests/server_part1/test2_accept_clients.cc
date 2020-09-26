@@ -1,8 +1,9 @@
-#include "../../vunmo-server.hh"
-#include "../../vunmo-client.hh"
 #include "../../tests.hh"
+#include "../../vunmo-client.hh"
+#include "../../vunmo-server.hh"
 
-int main() {
+int main()
+{
     const int num_clients = 3;
     int err;
 
@@ -14,7 +15,7 @@ int main() {
         return -1;
     }
 
-    sleep(1); // give the server time to start
+    sleep(1);  // give the server time to start
 
     Client clients[3];
 
@@ -27,7 +28,7 @@ int main() {
         }
     }
 
-    sleep(1); // give the server time to stop
+    sleep(1);  // give the server time to stop
 
     auto balances = s.stop();
 
@@ -47,5 +48,4 @@ int main() {
     }
 
     exit(0);
-
 }

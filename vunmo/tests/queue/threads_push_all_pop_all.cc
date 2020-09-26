@@ -1,6 +1,6 @@
+#include <algorithm>
 #include <thread>
 #include <vector>
-#include <algorithm>
 #include "../../synchronized_queue.cc"
 #include "../../tests.hh"
 
@@ -10,9 +10,10 @@
  * Use a single thread to push and pop elements in order, one at a time.
  */
 
-void push_all_and_pop_all_elements(std::vector<int> *elts, synchronized_queue<int> *q,
-                           std::vector<int> *popped_elts) {
-
+void push_all_and_pop_all_elements(std::vector<int> *elts,
+                                   synchronized_queue<int> *q,
+                                   std::vector<int> *popped_elts)
+{
     int popped_elt;
     bool stopped;
 
@@ -34,7 +35,8 @@ void push_all_and_pop_all_elements(std::vector<int> *elts, synchronized_queue<in
     }
 }
 
-int main() {
+int main()
+{
     synchronized_queue<int> q;
 
     // generate elts to push
@@ -54,7 +56,8 @@ int main() {
     std::vector<int> popped_elts[NUM_THREADS];
     for (int i = 0; i < NUM_THREADS; i++) {
         printf("starting thread %d\n", i);
-        threads[i] = std::thread(push_all_and_pop_all_elements, &elts_to_push[i], &q, &popped_elts[i]);
+        threads[i] = std::thread(push_all_and_pop_all_elements,
+                                 &elts_to_push[i], &q, &popped_elts[i]);
     }
 
     // join threads and accumulate popped elements
