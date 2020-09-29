@@ -109,7 +109,7 @@ bool synchronized_queue<T>::pop(T *elt)
 {
     // TODO: implement
     if (this->q.size() == 0)
-        return false;
+        return true;
     
     this->mtx.lock();
     *elt = this->q.front();
@@ -149,6 +149,8 @@ void synchronized_queue<T>::stop()
     // set is_stopped to true, and wake up all threads waiting on the cond
     // variable
     // TODO: implement
+    this->is_stopped = true;
+    cv.notify_all();
 }
 
 #endif

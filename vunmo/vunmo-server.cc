@@ -41,7 +41,7 @@ int Server::process_request(request_t *req)
     //      - Check the type of request, and call `get_account` or
     //        `get_two_accounts` depending on the type.
     //      - Error check the return value of `get_account` or
-    //      `get_two_accounts`,
+    //        `get_two_accounts`,
     //        whichever you called above. If there is error, call
     //        `handle_missing_clients` and return the error value.
 
@@ -52,15 +52,14 @@ int Server::process_request(request_t *req)
     //        request_type enums), then call `handle_unknown_request`.
     //      - Make sure to check for their return value for error!
     //      - These handlers will fill appropriate messages in the response_t
-    //      (and
-    //        notification_t) you pass in, so you don't have to worry about that
+    //        (and notification_t) you pass in, so you don't have to worry about that
     //        detail :)
 
     // 3. Send the response_t to client who issued the request by calling
-    // `send_response`.
+    //    `send_response`.
 
     // 4. If necessary, send the notification_t to target client by calling
-    // `send_notification`.
+    //    `send_notification`.
 
     // 5. Unlock client account(s).
 
@@ -75,6 +74,12 @@ void Server::receive_requests_loop()
     // While the server is still running (i.e., `is_stopped` is still false),
     // keep calling `fetch_requests` in a loop to fetch requests from clients.
     // Add them to the server's work queue.
+    while (!this->is_stopped.load()) {
+        std::vector<request_t *> fq = this->fetch_requests(); 
+        for (std::vector<request_t *>::iterator it = fq.begin();
+                    it != fq.end(); it++) 
+            this->work_queue.push(*it); 
+    }
 }
 
 void Server::work_loop()
@@ -87,6 +92,15 @@ void Server::work_loop()
     //        stopped), simply return.
     //      - Free the request struct with the `delete` keyword since the struct
     //        was heap allocated.
+    while (!this->is_stopped.load()) {
+        request_t *req = (request_t *)malloc(sizeof(request_t));
+        this->work_queue.pop(&req);
+        if (!req)
+            process_request(req);
+        else 
+            delete req;
+    }
+    
 }
 
 void Server::accept_clients_loop()
@@ -95,8 +109,7 @@ void Server::accept_clients_loop()
     // While the server is still running (i.e., `is_stopped` is still false), do
     // the following steps in a loop:
     // 1. Call `accept_client` and get a pointer to client_conn_t (which
-    // contains
-    //    newly accepted client's connection information).
+    //    contains newly accepted client's connection information).
     // 2. If we already have the new client's ID in `client_conns` map, it means
     //    that this is a client that is re-connecting with the same ID. Call
     //    `handle_reconnecting_client` to take care of this case, and go back to
@@ -105,36 +118,69 @@ void Server::accept_clients_loop()
     //    insert the client_conn_t into `client_conns` map.
     // 3. Create a new account_t for the client. Initialize the ID and balance,
     //    and insert it into `accounts` map.
+    while (!this->is_stopped.load()) {
+        client_conn_t *cct = this->accept_client();
+        if (cct == NULL) {
+            continue;
+        }
+        if (this->client_conns.find(cct->id) != this->client_conns.end()) {
+            this->handle_reconnecting_client(cct, this->client_conns.at(cct->id));
+            continue;
+        }
+        this->client_conns_mtx.lock();
+        cct->is_connected = true; 
+        this->client_conns.insert(std::pair<uint64_t, client_conn_t*>(cct->id, cct));
+        this->client_conns_mtx.unlock();
+    
+        this->accounts_mtx.lock();
+        account_t *acc = (account_t *)malloc(sizeof(account_t));
+        acc->id = cct->id;
+        acc->balance = 0;
+        this->accounts.insert(std::pair<uint64_t, account_t*>(cct->id, acc));
+        this->accounts_mtx.unlock();
+    }
+
 }
 
 int Server::start(int port, int n_workers)
 {
     // TODO: implement
     // 1. Set the server's `is_stopped` field to false.
+    this->is_stopped = false;
 
     // 2. Call `open_listen_socket` to open a listener socket. Make sure the
     //    socket descriptor returned is not -1, and store it in the server's
     //    `listener_fd` field.
+    this->listener_fd = open_listen_socket(port);
+    if (this->listener_fd == -1) 
+        return -1;
 
     // 3. Make sure that n_workers is greater than 0, and store n_workers in the
     //    server's `num_workers`, and set its `workers` vector to be a vector of
     //    that size.
     //    You can call vector's resize function, or create a new vector of that
     //    size to do this.
+    if (n_workers < 0)
+        return -1;
+    this->num_workers = n_workers;
+    this->workers.resize(n_workers);
 
     // 4. Create a pool of workers by spawning `num_workers` number of threads,
     //    each running the `work_loop` function. Store the worker threads in the
     //    `workers` vector. These threads will be joined in `stop()`.
+    for (int i = 0; i < this->num_workers; i++)  
+        this->workers.push_back(std::thread(&Server::work_loop, this));
 
     // 5. Create a thread that runs `receive_requests_loop` to keep reading
     //    requests from clients.
     //    Store this thread in the server's `request_listener` field. This
     //    thread will be joined in `stop()`.
+    this->request_listener = std::thread(&Server::receive_requests_loop, this);
 
     // 6. Create a thread that runs `accept_clients_loop` to keep accepting
-    // client
-    //    connections.
+    //    client connections.
     //    Store this thread in the server's `client_listener` field.
+    this->client_listener = std::thread(&Server::accept_clients_loop, this);
 
     return 0;
 }
@@ -143,18 +189,30 @@ std::unordered_map<uint64_t, uint64_t> Server::stop()
 {
     // TODO: implement
     // 1. Set the server's `is_stopped` field to true.
+    this->is_stopped = true;
 
     // 2. Stop the server from accepting further connections. To do so, call the
     //    `shutdown` system call on the server's `listener_fd` socket
     //    descriptor; and pass `SHUT_RDWR` as the second argument, which shuts
     //    the socket down for reading and writing. Join the `request_listener`
     //    thread.
+    shutdown(this->listener_fd, SHUT_RDWR);
+    if (this->request_listener.joinable())
+        this->request_listener.join();
 
     // 3. Stop the work queue. Flush the content of the queue, and free each
     //    request struct (which was heap-allocated when it was created) with the
     //    `delete` keyword.
+    this->work_queue.flush();
 
     // 4. Join all workers threads, and join the client listener thread.
+    for (int i = 0; i < (int)this->workers.size(); i++) {
+        if (this->workers.at(i).joinable())
+            this->workers.at(i).join();
+    }
+
+    if (this->client_listener.joinable())
+        this->client_listener.join();
 
     /* NOTE: At this point, server is now in a single-threaded state */
 
