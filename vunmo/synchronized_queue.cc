@@ -108,10 +108,12 @@ template <typename T>
 bool synchronized_queue<T>::pop(T *elt)
 {
     // TODO: implement
-    if (this->q.size() == 0)
-        return true;
-    
     this->mtx.lock();
+    if (this->q.size() <= 0) {
+        this->mtx.unlock();
+        return true;
+    }
+    
     *elt = this->q.front();
     this->q.pop();
     this->mtx.unlock();

@@ -3,8 +3,17 @@
 int Server::get_account(uint64_t id, account_t **account)
 {
     // TODO: implement
-
-    return -ECLINOTFOUND;
+    this->accounts_mtx.lock();
+    auto entry = this->accounts.find(id);
+    if (entry == this->accounts.end()) {
+        this->accounts_mtx.unlock();
+        return -ECLINOTFOUND;
+    } else {
+        *account = entry->second; 
+        (*account)->mtx.lock();
+        this->accounts_mtx.unlock();
+        return 0;
+    }
 }
 
 int Server::get_two_accounts(uint64_t first_id,
@@ -20,8 +29,26 @@ int Server::get_two_accounts(uint64_t first_id,
     // could potentially get into a deadlock (can you think how that would
     // happen?). Come up with a way to lock these clients so that you can always
     // avoid deadlocks!
+    this->accounts_mtx.lock();
+    auto first_entry = this->accounts.find(first_id);
+    auto second_entry = this->accounts.find(second_id);
+    if (first_entry == this->accounts.end()) {
+        this->accounts_mtx.unlock();
+        return -ECLINOTFOUND;
+    }
 
-    return -ECLINOTFOUND;
+    if (second_entry == this->accounts.end()) {
+        this->accounts_mtx.unlock();
+        return -ECLINOTFOUND;
+    }
+
+    *first_account = first_entry->second; 
+    *second_account = second_entry->second; 
+    (*first_account)->mtx.lock();
+    (*second_account)->mtx.lock();
+
+    this->accounts_mtx.unlock();
+    return 0;
 }
 
 int Server::process_request(request_t *req)
@@ -44,6 +71,18 @@ int Server::process_request(request_t *req)
     //        `get_two_accounts`,
     //        whichever you called above. If there is error, call
     //        `handle_missing_clients` and return the error value.
+    int r;
+    if (req->type == PAYMENT || req->type == CHARGE) {
+       r = get_two_accounts(req->origin_client_id, &first_account, 
+                                req->target_client_id, &second_account); 
+    } else {
+        r = get_account(req->origin_client_id, &first_account);
+    }
+
+    if (r < 0) {
+        handle_missing_clients(r, req);
+        return r;
+    }
 
     // 2. Call appropriate request handler.
     //      - Depending on the type of request, call `handle_balance`,
@@ -54,14 +93,46 @@ int Server::process_request(request_t *req)
     //      - These handlers will fill appropriate messages in the response_t
     //        (and notification_t) you pass in, so you don't have to worry about that
     //        detail :)
+    switch (req->type) {
+        case BALANCE:
+            r = handle_balance(req, first_account, &resp);
+            break;
+        case DEPOSIT:
+            r = handle_deposit(req, first_account, &resp);
+            break;
+        case WITHDRAWAL:
+            r = handle_withdraw(req, first_account, &resp);
+            break;
+        case PAYMENT:
+            r = handle_pay(req, first_account, second_account, &resp, &target_notification);
+            break;
+        case CHARGE:
+            r = handle_charge(req, first_account, second_account, &resp, &target_notification);
+            break;
+        default:
+            r = handle_unknown_request(req, &resp);
+            break;
+    }
+    
+    if (r < 0)
+        return r;
 
     // 3. Send the response_t to client who issued the request by calling
     //    `send_response`.
+    r = send_response(req->origin_client_id, &resp);
+    if (r < 0)
+        return r;
 
     // 4. If necessary, send the notification_t to target client by calling
     //    `send_notification`.
+    r = send_notification(req->target_client_id, &target_notification);
+    if (r < 0)
+        return r;
 
     // 5. Unlock client account(s).
+    first_account->mtx.unlock();
+    if (second_account) 
+        second_account->mtx.unlock();
 
     return 0;
 }
@@ -94,8 +165,10 @@ void Server::work_loop()
     //        was heap allocated.
     while (!this->is_stopped.load()) {
         request_t *req = (request_t *)malloc(sizeof(request_t));
-        this->work_queue.pop(&req);
-        if (!req)
+        if (this->work_queue.pop(&req))
+            continue;
+
+        if (req)
             process_request(req);
         else 
             delete req;
