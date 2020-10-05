@@ -10,7 +10,7 @@ int Server::get_account(uint64_t id, account_t **account)
         return -ECLINOTFOUND;
     } else {
         *account = entry->second; 
-        (*account)->mtx.lock();
+        //(*account)->mtx.lock();
         this->accounts_mtx.unlock();
         return 0;
     }
@@ -39,13 +39,18 @@ int Server::get_two_accounts(uint64_t first_id,
 
     if (second_entry == this->accounts.end()) {
         this->accounts_mtx.unlock();
-        return -ECLINOTFOUND;
+        return -ETARNOTFOUND;
+    }
+
+    if (first_entry == second_entry) {
+        this->accounts_mtx.unlock();
+        return -ESELFACTION;  
     }
 
     *first_account = first_entry->second; 
     *second_account = second_entry->second; 
-    (*first_account)->mtx.lock();
-    (*second_account)->mtx.lock();
+    //(*first_account)->mtx.lock();
+    //(*second_account)->mtx.lock();
 
     this->accounts_mtx.unlock();
     return 0;
@@ -114,25 +119,19 @@ int Server::process_request(request_t *req)
             break;
     }
     
-    if (r < 0)
-        return r;
-
     // 3. Send the response_t to client who issued the request by calling
     //    `send_response`.
     r = send_response(req->origin_client_id, &resp);
-    if (r < 0)
-        return r;
 
     // 4. If necessary, send the notification_t to target client by calling
     //    `send_notification`.
-    r = send_notification(req->target_client_id, &target_notification);
-    if (r < 0)
-        return r;
+    if (second_account) 
+        r = send_notification(req->target_client_id, &target_notification);
 
     // 5. Unlock client account(s).
-    first_account->mtx.unlock();
-    if (second_account) 
-        second_account->mtx.unlock();
+    //first_account->mtx.unlock();
+    //if (second_account) 
+    //    second_account->mtx.unlock();
 
     return 0;
 }
@@ -165,6 +164,12 @@ void Server::work_loop()
     //        was heap allocated.
     while (!this->is_stopped.load()) {
         request_t *req = (request_t *)malloc(sizeof(request_t));
+        if (!this->work_queue.pop(&req)) {
+            if (req)
+                process_request(req);
+        }
+        delete req;
+        /*
         if (this->work_queue.pop(&req))
             continue;
 
@@ -172,6 +177,7 @@ void Server::work_loop()
             process_request(req);
         else 
             delete req;
+        */
     }
     
 }
